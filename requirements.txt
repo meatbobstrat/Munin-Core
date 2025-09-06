@@ -1,6 +1,23 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
-watchdog
-requests
+# --- Web API ---
+fastapi>=0.110,<0.120
+pydantic>=2.5,<3.0
+uvicorn[standard]>=0.35,<0.36
+
+# --- Ingestion / watcher ---
+watchdog>=3.0,<5.0
+requests>=2.31,<3.0
+python-dateutil>=2.9.0.post0
+
+# --- Optional but common for FastAPI/Pydantic on some envs ---
+typing-extensions>=4.9,<5.0
+
+# --- DB ---
+# using sqlite3 from the standard library (no package needed)
+
+# --- If you still have this from earlier and aren't using it, remove it. ---
+# SQLAlchemy (comment out if unused)
+# SQLAlchemy>=2.0,<3.0
+
+# Windows Only
+pywin32>=306; platform_system=="Windows"
+

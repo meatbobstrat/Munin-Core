@@ -1,8 +1,8 @@
 {
   "watch_dir": "logs",
-  "glob": "*.log",
-  "source": "syslog",
-  "level": "INFO",
-  "api_url": "http://127.0.0.1:8000/ingest",
-  "state_file": ".ingest_state.json"
+  "glob": "*",
+  "api_url": "http://127.0.0.1:8000/ingest/batch",
+  "state_file": ".ingest_state.json",
+  "api_wait": 20,
+  "batch_size": 200
 }
