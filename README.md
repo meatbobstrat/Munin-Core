@@ -1,3 +1,5 @@
+[![CI](https://github.com/meatbobstrat/Munin-Core/actions/workflows/ci.yml/badge.svg)](https://github.com/meatbobstrat/Munin-Core/actions/workflows/ci.yml)
+
 # Munin-Core
 
 Every org should have access to a good SIEM.
