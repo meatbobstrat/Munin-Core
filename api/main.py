@@ -1,21 +1,24 @@
 # api/main.py
+import json
+
+# ----- logging -----
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Literal, Optional
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from datetime import datetime, timezone
-from typing import Optional, List, Literal, Dict, Any
-from contextlib import asynccontextmanager
-import sqlite3, json
 
 # watcher lifecycle
 from scripts.file_watcher import start_watcher, stop_watcher
 
 # DB helpers
-from .utils.db import get_conn, ensure_initialized
+from .utils.db import ensure_initialized, get_conn
 
-# ----- logging -----
-import logging
 logger = logging.getLogger("uvicorn.error")
 logger.info("[Munin] >>> MAIN.PY loaded <<<")
+
 
 # ----- extra schema for normalized/batched ingestion -----
 def ensure_normalized_schema() -> None:
@@ -38,15 +41,18 @@ def ensure_normalized_schema() -> None:
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_norm_time ON normalized_events (event_time);")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_norm_src  ON normalized_events (source_path);")
-        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_norm_hash ON normalized_events (content_hash);")
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_norm_hash ON normalized_events (content_hash);"
+        )
         conn.commit()
+
 
 # ----- lifespan (startup/shutdown) -----
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    ensure_initialized()          # your existing logs table, etc.
-    ensure_normalized_schema()    # new normalized_events table
+    ensure_initialized()  # your existing logs table, etc.
+    ensure_normalized_schema()  # new normalized_events table
     logger.info("[Munin] DB initialized (logs + normalized_events)")
 
     start_watcher()
@@ -59,11 +65,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[Munin] stop_watcher error: {e}")
 
+
 app = FastAPI(
     title="Munin-Core API",
     version="0.1.0",
     lifespan=lifespan,
 )
+
 
 # ----- Schemas -----
 class IngestItem(BaseModel):
@@ -71,11 +79,13 @@ class IngestItem(BaseModel):
     level: Optional[Literal["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"]] = "INFO"
     message: str = Field(..., min_length=1)
 
+
 class LogItem(BaseModel):
     timestamp: str
     level: Optional[str]
     message: str
     source: str
+
 
 class NormalizedEventModel(BaseModel):
     source_path: str
@@ -88,8 +98,10 @@ class NormalizedEventModel(BaseModel):
     raw_excerpt: Optional[str] = None
     content_hash: str
 
+
 class BatchIngest(BaseModel):
     events: List[NormalizedEventModel]
+
 
 # ----- Routes -----
 @app.get("/health")
@@ -100,6 +112,7 @@ def health():
         return {"status": "ok"}
     except Exception as e:
         return {"status": "degraded", "error": str(e)}
+
 
 # Legacy single-line ingest (kept for compatibility)
 @app.post("/ingest", response_model=dict)
@@ -116,6 +129,7 @@ def ingest(item: IngestItem):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
+
 # NEW: batched, normalized ingest
 @app.post("/ingest/batch")
 def ingest_batch(payload: BatchIngest):
@@ -125,16 +139,25 @@ def ingest_batch(payload: BatchIngest):
             cur = conn.cursor()
             for ev in payload.events:
                 try:
-                    cur.execute("""
+                    cur.execute(
+                        """
                     INSERT OR IGNORE INTO normalized_events
                     (source_path, source_type, line_number, event_time, level,
                      message, attrs, raw_excerpt, content_hash)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        ev.source_path, ev.source_type, ev.line_number, ev.event_time,
-                        ev.level, ev.message, json.dumps(ev.attrs or {}, ensure_ascii=False),
-                        ev.raw_excerpt, ev.content_hash
-                    ))
+                    """,
+                        (
+                            ev.source_path,
+                            ev.source_type,
+                            ev.line_number,
+                            ev.event_time,
+                            ev.level,
+                            ev.message,
+                            json.dumps(ev.attrs or {}, ensure_ascii=False),
+                            ev.raw_excerpt,
+                            ev.content_hash,
+                        ),
+                    )
                     inserted += cur.rowcount
                 except Exception:
                     # skip bad rows and continue
@@ -143,6 +166,7 @@ def ingest_batch(payload: BatchIngest):
         return {"ok": True, "inserted": inserted, "received": len(payload.events)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB error: {e}")
+
 
 @app.get("/logs", response_model=List[LogItem])
 def get_logs(source: Optional[str] = None, limit: int = 10):
@@ -156,8 +180,7 @@ def get_logs(source: Optional[str] = None, limit: int = 10):
                 )
             else:
                 cur = conn.execute(
-                    "SELECT timestamp, level, message, source FROM logs "
-                    "ORDER BY id DESC LIMIT ?",
+                    "SELECT timestamp, level, message, source FROM logs ORDER BY id DESC LIMIT ?",
                     (limit,),
                 )
             rows = [LogItem(**dict(r)) for r in cur.fetchall()]
@@ -165,21 +188,20 @@ def get_logs(source: Optional[str] = None, limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
+
 # NEW: query structured/normalized events
 @app.get("/events")
-def list_events(
-    source: Optional[str] = None,
-    level: Optional[str] = None,
-    limit: int = 200
-):
+def list_events(source: Optional[str] = None, level: Optional[str] = None, limit: int = 200):
     try:
         with get_conn() as conn:
             q = "SELECT * FROM normalized_events"
             clauses, args = [], []
             if source:
-                clauses.append("source_path LIKE ?"); args.append(f"%{source}%")
+                clauses.append("source_path LIKE ?")
+                args.append(f"%{source}%")
             if level:
-                clauses.append("COALESCE(level,'') = ?"); args.append(level.upper())
+                clauses.append("COALESCE(level,'') = ?")
+                args.append(level.upper())
             if clauses:
                 q += " WHERE " + " AND ".join(clauses)
             q += " ORDER BY COALESCE(event_time, inserted_at) DESC LIMIT ?"

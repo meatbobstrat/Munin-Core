@@ -1,7 +1,11 @@
 # src/munin/parsers/csvlog.py
-import csv, io
+import csv
+import io
+
 from dateutil import parser as dtp
-from .base import Parser, NormalizedEvent, register
+
+from .base import NormalizedEvent, Parser, register
+
 
 class CSVParser(Parser):
     _dialect = csv.excel
@@ -16,10 +20,12 @@ class CSVParser(Parser):
             return 0.0
 
     def parse_line(self, line: str, line_no: int, filename: str):
-        if line_no == 1: return None  # header
+        if line_no == 1:
+            return None  # header
         reader = csv.reader(io.StringIO(line), dialect=self._dialect)
         row = next(reader, None)
-        if not row: return None
+        if not row:
+            return None
         # naive: treat first col as time if parseable
         ts = None
         try:
@@ -29,9 +35,15 @@ class CSVParser(Parser):
             event_time = None
         msg = ",".join(row[:6])[:500]
         return NormalizedEvent(
-            source_path=filename, source_type="csv", line_number=line_no,
-            event_time=event_time, level="", message=msg,
-            attrs={"columns": row}, raw_excerpt=line
+            source_path=filename,
+            source_type="csv",
+            line_number=line_no,
+            event_time=event_time,
+            level="",
+            message=msg,
+            attrs={"columns": row},
+            raw_excerpt=line,
         )
+
 
 register(CSVParser())

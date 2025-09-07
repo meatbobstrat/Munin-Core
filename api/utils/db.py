@@ -1,6 +1,6 @@
-from pathlib import Path
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 # <repo root>/memory/munin_memory.db
 DB_PATH = Path(__file__).resolve().parents[2] / "memory" / "munin_memory.db"
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS echotime (
 );
 """
 
+
 def ensure_initialized():
     """Create DB file and required tables if missing; set ET 0.0.0 if not set."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -37,6 +38,7 @@ def ensure_initialized():
                 (datetime.now(timezone.utc).isoformat(timespec="seconds"),),
             )
         conn.commit()
+
 
 def get_conn() -> sqlite3.Connection:
     """Return a connection; ensures DB/schema exist."""

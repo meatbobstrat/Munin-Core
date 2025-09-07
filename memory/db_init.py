@@ -5,11 +5,12 @@ import sqlite3
 DB_FILENAME = "munin.db"
 DB_PATH = os.path.join(os.path.dirname(__file__), DB_FILENAME)
 
+
 def init_db(db_path: str = DB_PATH) -> None:
     """
-    Initialize the SQLite database for security events. Creates the database file 
+    Initialize the SQLite database for security events. Creates the database file
     (if it doesn't exist) and ensures the 'events' table is present with the required schema.
-    
+
     Schema (events table):
       - id: INTEGER PRIMARY KEY AUTOINCREMENT
       - timestamp: TEXT (UTC timestamp of ingestion)
@@ -42,6 +43,7 @@ def init_db(db_path: str = DB_PATH) -> None:
         # Ensure the database connection is closed properly
         if conn:
             conn.close()
+
 
 # If this module is run as a script, perform initialization.
 if __name__ == "__main__":

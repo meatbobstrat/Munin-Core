@@ -17,26 +17,26 @@ Munin-Core file watcher (lossless ingest, delete-after-ingest)
 
 from __future__ import annotations
 
-import os
-import sys
-import json
-import time
-import shutil
 import hashlib
+import json
 import logging
+import os
+import shutil
 import sqlite3
+import sys
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
-from watchdog.observers import Observer
 from watchdog.events import (
-    FileSystemEventHandler,
     FileCreatedEvent,
-    FileMovedEvent,
     FileModifiedEvent,
+    FileMovedEvent,
+    FileSystemEventHandler,
 )
+from watchdog.observers import Observer
 
 # --- Local modules ---
 # Expect: storage/quota.py with enforce_quota(conn, cfg)
@@ -60,6 +60,7 @@ _DB_LOCK = threading.RLock()
 # Config
 # ---------------------------
 
+
 @dataclass
 class IngestConfig:
     watch_dir: Path
@@ -72,11 +73,11 @@ class IngestConfig:
     # Quota knobs (mirrors your quota.py expectations)
     DB_PATH: str = ""
     DB_HIGH_WATERMARK: int = 9 * 1024 * 1024 * 1024  # 9 GiB
-    DB_LOW_WATERMARK: int = 8 * 1024 * 1024 * 1024   # 8 GiB
+    DB_LOW_WATERMARK: int = 8 * 1024 * 1024 * 1024  # 8 GiB
     RETENTION_MIN_DAYS: int = 7
     # Quarantine policy
     QUARANTINE_MAX_BYTES: int = 1 * 1024 * 1024 * 1024  # 1 GiB
-    QUARANTINE_RETENTION_DAYS: int = 7                  # 7 days
+    QUARANTINE_RETENTION_DAYS: int = 7  # 7 days
 
     @staticmethod
     def load(path: Path) -> "IngestConfig":
@@ -86,7 +87,7 @@ class IngestConfig:
         # Base dir: try explicit base_dir, then watch_dir, else current folder
         base = Path(raw.get("base_dir") or raw.get("watch_dir") or ".").resolve()
 
-        watch_dir      = Path(raw.get("watch_dir",      base / "incoming")).resolve()
+        watch_dir = Path(raw.get("watch_dir", base / "incoming")).resolve()
         processing_dir = Path(raw.get("processing_dir", base / "processing")).resolve()
         quarantine_dir = Path(raw.get("quarantine_dir", base / "quarantine")).resolve()
 
@@ -105,25 +106,35 @@ class IngestConfig:
 
         # Quota knobs (env > json > defaults)
         cfg.DB_PATH = str(cfg.db_path)
-        cfg.DB_HIGH_WATERMARK = int(os.environ.get(
-            "MUNIN_DB_HIGH_WATERMARK", raw.get("db_high_watermark", cfg.DB_HIGH_WATERMARK)
-        ))
-        cfg.DB_LOW_WATERMARK = int(os.environ.get(
-            "MUNIN_DB_LOW_WATERMARK", raw.get("db_low_watermark", cfg.DB_LOW_WATERMARK)
-        ))
-        cfg.RETENTION_MIN_DAYS = int(os.environ.get(
-            "MUNIN_RETENTION_MIN_DAYS", raw.get("retention_min_days", cfg.RETENTION_MIN_DAYS)
-        ))
+        cfg.DB_HIGH_WATERMARK = int(
+            os.environ.get(
+                "MUNIN_DB_HIGH_WATERMARK", raw.get("db_high_watermark", cfg.DB_HIGH_WATERMARK)
+            )
+        )
+        cfg.DB_LOW_WATERMARK = int(
+            os.environ.get(
+                "MUNIN_DB_LOW_WATERMARK", raw.get("db_low_watermark", cfg.DB_LOW_WATERMARK)
+            )
+        )
+        cfg.RETENTION_MIN_DAYS = int(
+            os.environ.get(
+                "MUNIN_RETENTION_MIN_DAYS", raw.get("retention_min_days", cfg.RETENTION_MIN_DAYS)
+            )
+        )
 
         # Quarantine policy (env > json > defaults)
-        cfg.QUARANTINE_MAX_BYTES = int(os.environ.get(
-            "MUNIN_QUARANTINE_MAX_BYTES",
-            raw.get("quarantine_max_bytes", cfg.QUARANTINE_MAX_BYTES)
-        ))
-        cfg.QUARANTINE_RETENTION_DAYS = int(os.environ.get(
-            "MUNIN_QUARANTINE_RETENTION_DAYS",
-            raw.get("quarantine_retention_days", cfg.QUARANTINE_RETENTION_DAYS)
-        ))
+        cfg.QUARANTINE_MAX_BYTES = int(
+            os.environ.get(
+                "MUNIN_QUARANTINE_MAX_BYTES",
+                raw.get("quarantine_max_bytes", cfg.QUARANTINE_MAX_BYTES),
+            )
+        )
+        cfg.QUARANTINE_RETENTION_DAYS = int(
+            os.environ.get(
+                "MUNIN_QUARANTINE_RETENTION_DAYS",
+                raw.get("quarantine_retention_days", cfg.QUARANTINE_RETENTION_DAYS),
+            )
+        )
 
         return cfg
 
@@ -131,6 +142,7 @@ class IngestConfig:
 # ---------------------------
 # DB helpers
 # ---------------------------
+
 
 def connect(db_path: Path) -> sqlite3.Connection:
     # Allow use across the watchdog thread; serialize with _DB_LOCK
@@ -158,10 +170,16 @@ def ensure_ingest_schema(conn: sqlite3.Connection) -> None:
             status            TEXT NOT NULL CHECK (status IN ('processing','committed','deleted','error'))
         );
         """)
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_file_manifest_sha256 ON file_manifest(sha256);")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_file_manifest_sha256 ON file_manifest(sha256);"
+        )
         conn.execute("CREATE INDEX IF NOT EXISTS ix_file_manifest_status ON file_manifest(status);")
-        conn.execute("CREATE INDEX IF NOT EXISTS ix_file_manifest_started ON file_manifest(started_at_utc);")
-        conn.execute("CREATE INDEX IF NOT EXISTS ix_file_manifest_ingested ON file_manifest(ingested_at_utc);")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS ix_file_manifest_started ON file_manifest(started_at_utc);"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS ix_file_manifest_ingested ON file_manifest(ingested_at_utc);"
+        )
 
         conn.execute("""
         CREATE TABLE IF NOT EXISTS event_occurrence (
@@ -180,7 +198,9 @@ def ensure_ingest_schema(conn: sqlite3.Connection) -> None:
         );
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS ix_event_file_id ON event_occurrence(file_id);")
-        conn.execute("CREATE INDEX IF NOT EXISTS ix_event_content_sha ON event_occurrence(content_sha256);")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS ix_event_content_sha ON event_occurrence(content_sha256);"
+        )
         conn.commit()
 
 
@@ -190,8 +210,16 @@ def file_manifest_has_sha(conn: sqlite3.Connection, sha256_hex: str) -> bool:
         return cur.fetchone() is not None
 
 
-def file_manifest_insert(conn: sqlite3.Connection, *, rel_path: str, sha256_hex: str, bytes_: int,
-                         mtime_iso: str, source_host: str, source_app: str) -> int:
+def file_manifest_insert(
+    conn: sqlite3.Connection,
+    *,
+    rel_path: str,
+    sha256_hex: str,
+    bytes_: int,
+    mtime_iso: str,
+    source_host: str,
+    source_app: str,
+) -> int:
     with _DB_LOCK:
         cur = conn.execute(
             """
@@ -268,7 +296,9 @@ def content_hash(level: Optional[str], message: str, attrs_json: Optional[str]) 
     return h.hexdigest()
 
 
-def parse_stream_simple(stream: Iterable[bytes]) -> Iterable[tuple[Optional[str], Optional[str], str, Optional[str]]]:
+def parse_stream_simple(
+    stream: Iterable[bytes],
+) -> Iterable[tuple[Optional[str], Optional[str], str, Optional[str]]]:
     """
     Minimal parser: one log line per row.
     Returns tuples: (event_time_utc, level, message, attrs_json)
@@ -318,7 +348,7 @@ def move_atomic(src: Path, dst_dir: Path, retries: int = 30, delay: float = 0.1)
     dst_dir.mkdir(parents=True, exist_ok=True)
     target = dst_dir / src.name
     if target.exists():
-        target = dst_dir / f"{src.stem}.{int(time.time()*1000)}{src.suffix}"
+        target = dst_dir / f"{src.stem}.{int(time.time() * 1000)}{src.suffix}"
 
     for _ in range(retries):
         try:
@@ -356,6 +386,7 @@ def quarantine_with_reason(src: Path, quarantine_dir: Path, reason: str) -> None
 
 
 # ---- Quarantine purge (age + size cap) ----
+
 
 def _dir_size_bytes(path: Path) -> int:
     total = 0
@@ -426,6 +457,7 @@ def purge_quarantine(cfg: IngestConfig, log: logging.Logger = LOG) -> None:
 # ---------------------------
 # File processing
 # ---------------------------
+
 
 def process_one_file(cfg: IngestConfig, conn: sqlite3.Connection, incoming_file: Path) -> None:
     if not incoming_file.is_file():
@@ -540,6 +572,7 @@ def process_one_file(cfg: IngestConfig, conn: sqlite3.Connection, incoming_file:
 # Watcher wiring
 # ---------------------------
 
+
 class IncomingHandler(FileSystemEventHandler):
     def __init__(self, cfg: IngestConfig, conn: sqlite3.Connection):
         super().__init__()
@@ -576,7 +609,9 @@ def ensure_dirs(cfg: IngestConfig) -> None:
 
 
 def main():
-    config_path = Path(os.environ.get("MUNIN_INGEST_CONFIG", "configs/ingest.config.json")).resolve()
+    config_path = Path(
+        os.environ.get("MUNIN_INGEST_CONFIG", "configs/ingest.config.json")
+    ).resolve()
     if not config_path.exists():
         LOG.error("Missing config file: %s", config_path)
         sys.exit(2)
@@ -613,6 +648,7 @@ def main():
 
 _observer: Optional[Observer] = None
 _conn: Optional[sqlite3.Connection] = None
+
 
 def start_watcher(config_path: str | None = None):
     """

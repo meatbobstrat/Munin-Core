@@ -1,6 +1,8 @@
 # normalize.py
 from __future__ import annotations
-import hashlib, json
+
+import hashlib
+import json
 from typing import Any, Dict
 
 # Support both "package" and "flat script" imports
@@ -31,6 +33,4 @@ def content_hash(ev: Dict[str, Any]) -> str:
         "message": ev.get("message"),
         "attrs": ev.get("attrs"),
     }
-    return hashlib.sha256(
-        json.dumps(key, sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(json.dumps(key, sort_keys=True, default=str).encode("utf-8")).hexdigest()

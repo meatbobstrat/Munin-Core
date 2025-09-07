@@ -1,5 +1,6 @@
+import sqlite3
 from pathlib import Path
-import sqlite3, time
+
 
 def db_size_bytes(db_path: str) -> int:
     p = Path(db_path)
@@ -11,17 +12,19 @@ def db_size_bytes(db_path: str) -> int:
             total += f.stat().st_size
     return total
 
+
 def enforce_quota(conn: sqlite3.Connection, cfg) -> tuple[bool, int]:
     """
     Returns (ok, freed_bytes). ok=False if still above high_watermark after prune.
     """
     size = db_size_bytes(cfg.DB_PATH)
-    if size <= cfg.DB_HIGH_WATERMARK: 
+    if size <= cfg.DB_HIGH_WATERMARK:
         return True, 0
 
     # don’t delete events newer than retention_min_days
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         DELETE FROM event_occurrence
         WHERE event_time_utc IS NOT NULL
           AND event_time_utc < datetime('now', ?)
@@ -30,7 +33,9 @@ def enforce_quota(conn: sqlite3.Connection, cfg) -> tuple[bool, int]:
             ORDER BY event_time_utc ASC, id ASC
             LIMIT 50000
           )
-    """, (f"-{int(cfg.RETENTION_MIN_DAYS)} days",))
+    """,
+        (f"-{int(cfg.RETENTION_MIN_DAYS)} days",),
+    )
     conn.commit()
 
     new_size = db_size_bytes(cfg.DB_PATH)

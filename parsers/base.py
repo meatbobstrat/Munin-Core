@@ -1,9 +1,11 @@
 # src/munin/parsers/base.py
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 
 class NormalizedEvent(Dict[str, Any]):
     """Dict with keys: source_path, source_type, line_number, event_time, level, message, attrs, raw_excerpt"""
+
 
 class Parser(ABC):
     @abstractmethod
@@ -16,7 +18,9 @@ class Parser(ABC):
         """Return normalized event or None (skip/blank)."""
         ...
 
+
 REGISTRY: list[Parser] = []
+
 
 def register(parser: Parser):
     REGISTRY.append(parser)
