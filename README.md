@@ -41,7 +41,7 @@ Munin-Core takes a different path:
    }
 
 4. Run API + watcher:
-   uvicorn api.app:app --reload
+   uvicorn api.main:app --reload
 
 ---
 
