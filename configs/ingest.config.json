@@ -1,5 +1,5 @@
 {
-  "watch_dir": "logs",
+  "watch_dir": "D:/Dev/Munin-Core/Munin-Core/logs/incoming",
   "glob": "*",
   "api_url": "http://127.0.0.1:8000/ingest/batch",
   "state_file": ".ingest_state.json",
