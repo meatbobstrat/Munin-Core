@@ -1,5 +1,7 @@
 # Munin-Core
 
+Every org should have access to a good SIEM.
+
 AI-assisted log ingestion & visibility engine.  
 Replaces the brittle "rules & correlation" layer of legacy SIEMs with GPT-powered context, summaries, and annotations.
 
