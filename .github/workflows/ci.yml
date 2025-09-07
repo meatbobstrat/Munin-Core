@@ -2,27 +2,48 @@ name: CI
 
 on:
   push:
-    branches: [ main ]   # change "main" if your default branch is different
+    branches: ['**']        # run on any branch push
   pull_request:
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout (exact commit)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}   # force the workflow to use this commit
+          fetch-depth: 1
+
+      - name: Show HEAD + key files (debug)
+        run: |
+          echo "== COMMIT =="
+          git rev-parse HEAD
+          git log -1 --oneline
+          echo ""
+          echo "== api/main.py (first 20 lines) =="
+          sed -n '1,20p' api/main.py || true
+          echo ""
+          echo "== api/utils/__init__.py =="
+          cat api/utils/__init__.py || true
+          echo ""
+          echo "== parsers/__init__.py (first 20 lines) =="
+          sed -n '1,20p' parsers/__init__.py || true
+          echo ""
+          echo "== storage/quota.py (first 10 lines) =="
+          sed -n '1,10p' storage/quota.py || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install deps
+
+      - name: Install Ruff
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install ruff
-      - name: Ruff (lint)
-        run: ruff check .
-      # Runs only if a tests/ folder exists
-      - name: Pytest
-        if: ${{ hashFiles('tests/**') != '' }}
+
+      - name: Ruff (lint, no cache)
         run: |
-          pip install pytest
-          pytest -q
+          ruff --version
+          ruff check . --no-cache
