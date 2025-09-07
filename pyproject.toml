@@ -1,0 +1,10 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# don’t lint generated or heavy dirs
+exclude = ["db", "logs", ".venv", "venv", "frontend/dist", "__pycache__"]
+
+[tool.ruff.lint]
+# E: pycodestyle errors, F: pyflakes, I: import sorting
+select = ["E", "F", "I"]
+ignore = []
