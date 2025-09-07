@@ -80,3 +80,16 @@ Munin-Core replaces the middle:
 
 ## License
 MIT
+
+## Munin-Core vs. Traditional SIEMs
+
+| Feature                | Splunk/Elastic/Sentinel           | Munin-Core                              |
+|------------------------|-----------------------------------|-----------------------------------------|
+| Ingestion              | Complex, licensed by volume       | Lossless, simple drop-in folder ingest   |
+| Correlation/Rules      | Static rules, endless tuning      | AI-driven enrichment & context           |
+| UI                     | Dashboards & queries              | Chat + canvas (ask, answer, annotate)    |
+| Memory                 | None                              | AI sandbox notes (EchoTime)              |
+| Security               | Add-on MFA, complex RBAC          | MFA, AD/Azure, HMAC ingest (by default)  |
+| Openness               | Proprietary                       | Open source core                         |
+| Pricing                | $$$$ (volume-based)               | Free core; enterprise packs optional     |
+
