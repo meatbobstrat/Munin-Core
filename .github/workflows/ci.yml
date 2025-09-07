@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]         # change if your default branch is different
+    branches: [ main ]        # change if your default branch is different
   pull_request:
 
 concurrency:
@@ -16,51 +16,43 @@ jobs:
       - name: Checkout (exact commit)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}   # pin to the commit that triggered this run
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+          python-version: "3.12"
 
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install ruff
 
       - name: Ruff (lint, no cache)
         run: ruff check . --no-cache
 
-# Detect Python tests
-- name: Detect tests
-  id: test_files
-  run: |
-    shopt -s globstar nullglob
-    files=(tests/**/*_test.py tests/**/test_*.py)
-    if [ ${#files[@]} -eq 0 ]; then
-      echo "found=false" >> "$GITHUB_OUTPUT"
-    else
-      echo "found=true" >> "$GITHUB_OUTPUT"
-    fi
+      # --- run tests only if there are any under tests/ ---
+      - name: Detect tests
+        id: detect
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          files=(tests/**/*_test.py tests/**/test_*.py)
+          if (( ${#files[@]} )); then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
 
-# Run pytest only when tests exist
-- name: Pytest
-  if: steps.test_files.outputs.found == 'true'
-  run: |
-    pip install pytest
-    pytest -q
+      - name: Pytest
+        if: steps.detect.outputs.found == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+          pytest -q
 
-# Optional: friendly log when there are no tests
-- name: Skip pytest (no tests found)
-  if: steps.test_files.outputs.found != 'true'
-  run: echo "No tests found under tests/. Skipping."
-
+      - name: Skip pytest (no tests found)
+        if: steps.detect.outputs.found != 'true'
+        run: echo "No tests found under tests/. Skipping."
