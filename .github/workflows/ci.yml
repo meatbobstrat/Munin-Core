@@ -40,9 +40,27 @@ jobs:
       - name: Ruff (lint, no cache)
         run: ruff check . --no-cache
 
-      # Optional tests: runs only if you add a tests/ folder later
-      - name: Pytest
-        if: ${{ hashFiles('tests/**') != '' }}
-        run: |
-          pip install pytest
-          pytest -q
+# Detect Python tests
+- name: Detect tests
+  id: test_files
+  run: |
+    shopt -s globstar nullglob
+    files=(tests/**/*_test.py tests/**/test_*.py)
+    if [ ${#files[@]} -eq 0 ]; then
+      echo "found=false" >> "$GITHUB_OUTPUT"
+    else
+      echo "found=true" >> "$GITHUB_OUTPUT"
+    fi
+
+# Run pytest only when tests exist
+- name: Pytest
+  if: steps.test_files.outputs.found == 'true'
+  run: |
+    pip install pytest
+    pytest -q
+
+# Optional: friendly log when there are no tests
+- name: Skip pytest (no tests found)
+  if: steps.test_files.outputs.found != 'true'
+  run: echo "No tests found under tests/. Skipping."
+
