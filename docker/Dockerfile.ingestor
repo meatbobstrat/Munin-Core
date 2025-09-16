@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV PYTHONPATH=/app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy ingestor code
+COPY ingestor/ /app/ingestor/
+COPY scripts/file_watcher.py /app/
+
+# Environment variable for API endpoint (override in compose)
+ENV INGEST_API_URL=http://api_ingest:8000/ingest
+ENV SOURCE_NAME=default_source
+
+CMD ["python", "file_watcher.py"]

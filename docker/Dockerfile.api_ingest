@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy API code
+COPY api_ingest/ /app/api_ingest/
+COPY storage/ /app/storage/
+
+# Expose FastAPI on port 8000
+EXPOSE 8000
+
+CMD ["uvicorn", "api_ingest.main:app", "--host", "0.0.0.0", "--port", "8000"]

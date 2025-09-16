@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  api_ingest:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api_ingest
+    container_name: munin-api-ingest
+    ports:
+      - "8000:8000"
+    volumes:
+      - db_data:/data
+    environment:
+      - DB_TYPE=sqlite
+      - DB_PATH=/data/munin.db
+
+  ingestor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ingestor
+    container_name: munin-ingestor
+    volumes:
+      - ./incoming:/app/incoming  # drop logs here
+    environment:
+      - INGEST_API_URL=http://api_ingest:8000/ingest
+      - SOURCE_NAME=office1
+    depends_on:
+      - api_ingest
+
+volumes:
+  db_data:
