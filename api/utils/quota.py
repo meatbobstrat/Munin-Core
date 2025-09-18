@@ -1,6 +1,7 @@
 import os
 import sqlite3
-from .db import DB_PATH, get_db_size_bytes, emit_alert
+
+from .db import DB_PATH, emit_alert, get_db_size_bytes
 
 # configurable thresholds
 HIGH_WM_GIB = float(os.getenv("HIGH_WM_GIB", "9"))   # pause if bigger than this

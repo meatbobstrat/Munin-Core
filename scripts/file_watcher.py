@@ -1,13 +1,11 @@
 import os
 import time
-import json
-import requests
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from ingestor.handlers import base
-from ingestor.handlers import csvlog
-from ingestor.handlers import evtx
 
+import requests
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+from ingestor.handlers import csvlog, evtx, raw
 
 INGEST_API_URL = "http://api_ingest:8000/ingest"  # container → API
 SOURCE_NAME = os.getenv("SOURCE_NAME", "default_source")

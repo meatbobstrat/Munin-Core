@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 from storage.factory import get_storage_backend
 
 app = FastAPI()
