@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ingestor/ /app/ingestor/
 COPY scripts/file_watcher.py /app/
 
+# Create directory for ingestor DB
+RUN mkdir -p /app/data
+
 # Environment variable for API endpoint (override in compose)
 ENV INGEST_API_URL=http://api_ingest:8000/ingest
 ENV SOURCE_NAME=default_source

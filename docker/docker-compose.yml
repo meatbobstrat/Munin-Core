@@ -19,7 +19,7 @@ services:
       dockerfile: docker/Dockerfile.ingestor
     container_name: munin-ingestor
     volumes:
-      - ./incoming:/app/incoming  # drop logs here
+      - ../logs/incoming:/app/incoming  # drop logs here
     environment:
       - INGEST_API_URL=http://api_ingest:8000/ingest
       - SOURCE_NAME=office1
