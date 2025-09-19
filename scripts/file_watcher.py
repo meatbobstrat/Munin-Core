@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import sqlite3
@@ -10,33 +11,43 @@ import requests
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from ingestor.handlers import raw  # add others later (csvlog, evtx)
+from ingestor.handlers.registry import REGISTRY
+
+# -----------------------
+# Logging setup
+# -----------------------
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 # -----------------------
 # Config
 # -----------------------
 INGEST_API_URL = os.getenv("INGEST_API_URL", "http://api_ingest:8000/ingest")
-SOURCE_NAME    = os.getenv("SOURCE_NAME", "default_source")
+SOURCE_NAME = os.getenv("SOURCE_NAME", "default_source")
 
-INCOMING_DIR   = Path("./incoming")
+INCOMING_DIR = Path("./incoming")
 PROCESSING_DIR = Path("./processing")
 QUARANTINE_DIR = Path("./quarantine")
-DATA_DIR       = Path("/app/data")
-DB_PATH        = DATA_DIR / "ingestor.db"
+DATA_DIR = Path("/app/data")
+DB_PATH = DATA_DIR / "ingestor.db"
 
 # Retry worker tuning
 RETRY_INTERVAL_SEC = int(os.getenv("RETRY_INTERVAL_SEC", "3"))
-RETRY_BATCH_SIZE   = int(os.getenv("RETRY_BATCH_SIZE", "500"))
+RETRY_BATCH_SIZE = int(os.getenv("RETRY_BATCH_SIZE", "500"))
+FILE_STABLE_WAIT = 0.5
 
 # -----------------------
 # SQLite queue
 # -----------------------
 def init_db() -> None:
+    """Initialize the SQLite database with required tables."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    cur  = conn.cursor()
+    cur = conn.cursor()
 
-    # Events that parsed OK and are waiting to be sent to API
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pending_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +60,6 @@ def init_db() -> None:
         )
     """)
 
-    # Quarantined file notes are stored on disk (.note). We keep a table for ops if needed later.
     cur.execute("""
         CREATE TABLE IF NOT EXISTS quarantine_index (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,7 +78,7 @@ def buffer_events(events: List[Dict[str, Any]]) -> None:
     if not events:
         return
     conn = sqlite3.connect(DB_PATH)
-    cur  = conn.cursor()
+    cur = conn.cursor()
     cur.executemany(
         """
         INSERT INTO pending_events (source, file_type, ingest_time, line_number, message, tags)
@@ -81,8 +91,9 @@ def buffer_events(events: List[Dict[str, Any]]) -> None:
 
 
 def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
+    """Fetch up to `limit` events from the pending queue."""
     conn = sqlite3.connect(DB_PATH)
-    cur  = conn.cursor()
+    cur = conn.cursor()
     cur.execute(
         """
         SELECT id, source, file_type, ingest_time, line_number, message, tags
@@ -99,18 +110,20 @@ def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
 
 
 def delete_pending_ids(ids: List[int]) -> None:
+    """Delete events from the pending queue by ID."""
     if not ids:
         return
     conn = sqlite3.connect(DB_PATH)
-    cur  = conn.cursor()
+    cur = conn.cursor()
     cur.executemany("DELETE FROM pending_events WHERE id = ?", [(i,) for i in ids])
     conn.commit()
     conn.close()
 
 
 def add_quarantine_index(filename: str, reason: str) -> None:
+    """Add a quarantine record for tracking failed ingests."""
     conn = sqlite3.connect(DB_PATH)
-    cur  = conn.cursor()
+    cur = conn.cursor()
     cur.execute(
         "INSERT INTO quarantine_index (filename, reason, quarantined_at) VALUES (?, ?, datetime('now'))",
         (filename, reason),
@@ -122,11 +135,10 @@ def add_quarantine_index(filename: str, reason: str) -> None:
 # API send
 # -----------------------
 def send_batch_to_api(batch_rows: List[Dict[str, Any]]) -> None:
-    """Send a batch of events (already parsed) to API. Raises on failure."""
+    """Send a batch of events (already parsed) to the API. Raises on failure."""
     if not batch_rows:
         return
 
-    # Transform DB rows back into event dicts (drop the 'id')
     events = [
         {
             "source": r["source"],
@@ -140,14 +152,13 @@ def send_batch_to_api(batch_rows: List[Dict[str, Any]]) -> None:
     ]
 
     payload = {
-        "source": SOURCE_NAME,  # source of the ingestor itself
+        "source": SOURCE_NAME,
         "file_type": events[0].get("file_type", "unknown"),
         "ingest_time": events[0].get("ingest_time"),
         "events": events,
     }
-    r = requests.post(INGEST_API_URL, json=payload, timeout=10)
-    # Optional: honor 429 retry headers later
-    r.raise_for_status()
+    response = requests.post(INGEST_API_URL, json=payload, timeout=10)
+    response.raise_for_status()
 
 # -----------------------
 # Retry worker
@@ -161,18 +172,20 @@ def retry_worker(stop_evt: threading.Event) -> None:
                 time.sleep(RETRY_INTERVAL_SEC)
                 continue
 
-            # Attempt send
             send_batch_to_api(batch)
-            # On success, delete them
             delete_pending_ids([r["id"] for r in batch])
-        except Exception:
-            # Back off briefly; we'll retry on next tick
+            logger.info("Successfully flushed %d events", len(batch))
+        except requests.RequestException as rexc:
+            logger.warning("Network/API error during retry: %s", rexc)
+            time.sleep(RETRY_INTERVAL_SEC)
+        except Exception as exc:  # TODO: narrow exception types
+            logger.error("Unexpected error in retry_worker: %s", exc, exc_info=True)
             time.sleep(RETRY_INTERVAL_SEC)
 
 # -----------------------
 # Helpers
 # -----------------------
-def is_file_stable(path: Path, wait: float = 0.5) -> bool:
+def is_file_stable(path: Path, wait: float = FILE_STABLE_WAIT) -> bool:
     """Return True if file size stops changing during a short wait."""
     try:
         s1 = path.stat().st_size
@@ -184,45 +197,41 @@ def is_file_stable(path: Path, wait: float = 0.5) -> bool:
 
 
 def parse_file_to_events(file_path: Path) -> List[Dict[str, Any]]:
-    """Dispatch by extension; only raw for now."""
-    ext = file_path.suffix.lower()
-    handler = {
-        # ".csv": csvlog.CSVLogHandler(),
-        # ".evtx": evtx.EVTXHandler(),
-    }.get(ext, raw.RawHandler())
+    """Dispatch to handler by extension. Defaults to raw handler."""
+    ext = file_path.suffix.lower().lstrip(".") or "raw"
+    handler_cls = REGISTRY.get(ext, REGISTRY["raw"])
+    handler = handler_cls()
     return handler.parse(str(file_path))
 
 # -----------------------
 # Watcher
 # -----------------------
 class LogHandler(FileSystemEventHandler):
-    def on_created(self, event):
+    """Watches the incoming directory and processes new files."""
+
+    def on_created(self, event) -> None:
         if event.is_directory:
             return
         self.process_file(Path(event.src_path))
 
     def process_file(self, src: Path) -> None:
-        """Wait until stable, move to processing, parse, buffer, delete. Quarantine on parse failure."""
-        # Wait until writer is done
+        """Wait until stable, move to processing, parse, buffer, delete. Quarantine on failure."""
         while not is_file_stable(src):
-            time.sleep(0.5)
+            time.sleep(FILE_STABLE_WAIT)
 
-        # Move → processing
         PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
         dest = PROCESSING_DIR / src.name
         try:
             shutil.move(str(src), str(dest))
         except Exception as e:
-            print(f"[ERROR] Move failed {src} → {dest}: {e}")
+            logger.error("Move failed %s → %s: %s", src, dest, e)
             return
 
-        # Parse
         try:
             events = parse_file_to_events(dest)
             if not events:
                 raise ValueError("Parser returned no events")
         except Exception as e:
-            # Quarantine (no buffering of untrusted data)
             QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
             qpath = QUARANTINE_DIR / dest.name
             try:
@@ -231,18 +240,16 @@ class LogHandler(FileSystemEventHandler):
                 with open(note, "w", encoding="utf-8") as f:
                     f.write(f"Failed to parse {dest.name}\nReason: {e}\n")
                 add_quarantine_index(qpath.name, str(e))
-                print(f"[QUARANTINE] {dest.name} → {qpath.name}: {e}")
+                logger.warning("Quarantined %s due to parse error: %s", dest.name, e)
             except Exception as qe:
-                print(f"[FATAL] Could not quarantine {dest}: {qe}")
+                logger.critical("Could not quarantine %s: %s", dest, qe, exc_info=True)
             return
 
-        # Buffer then delete file (we are not a storage system)
         try:
             buffer_events(events)
             dest.unlink(missing_ok=True)
-            print(f"[OK] Buffered {len(events)} events from {dest.name}; file deleted")
+            logger.info("Buffered %d events from %s; file deleted", len(events), dest.name)
         except Exception as e:
-            # If buffering fails (rare), quarantine the file to avoid data loss
             QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
             qpath = QUARANTINE_DIR / dest.name
             try:
@@ -251,38 +258,34 @@ class LogHandler(FileSystemEventHandler):
                 with open(note, "w", encoding="utf-8") as f:
                     f.write(f"Failed to buffer events from {dest.name}\nReason: {e}\n")
                 add_quarantine_index(qpath.name, f"buffer failure: {e}")
-                print(f"[QUARANTINE] {dest.name} → {qpath.name}: buffer failure")
+                logger.error("Quarantined %s due to buffer failure", dest.name)
             except Exception as qe:
-                print(f"[FATAL] Could not quarantine after buffer failure {dest}: {qe}")
+                logger.critical("Could not quarantine after buffer failure %s: %s", dest, qe, exc_info=True)
 
 # -----------------------
 # Main
 # -----------------------
 if __name__ == "__main__":
-    # Ensure dirs
     INCOMING_DIR.mkdir(parents=True, exist_ok=True)
     PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
     QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # DB + retry worker
     init_db()
     stop_evt = threading.Event()
     t = threading.Thread(target=retry_worker, args=(stop_evt,), daemon=True)
     t.start()
 
-    # Kick the observer
-    handler  = LogHandler()
+    handler = LogHandler()
     observer = Observer()
     observer.schedule(handler, str(INCOMING_DIR), recursive=False)
     observer.start()
 
-    # Trigger watcher for any files already present
     for fname in os.listdir(INCOMING_DIR):
         fpath = INCOMING_DIR / fname
         if fpath.is_file():
             handler.process_file(fpath)
 
-    print(f"Watching {INCOMING_DIR} (buffer→delete; quarantine on parse failure)")
+    logger.info("Watching %s (buffer→delete; quarantine on parse failure)", INCOMING_DIR)
     try:
         while True:
             time.sleep(1)

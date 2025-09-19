@@ -1,36 +1,56 @@
-# ingestor/handlers/raw.py
-import os
+import logging
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List
 
+from .registry import register
 
+logger = logging.getLogger(__name__)
+
+@register("raw")
 class RawHandler:
-    """Fallback handler for unknown log formats.
-    Reads file as plain text and ensures every line has schema-compatible fields.
+    """
+    Fallback handler for unknown log formats.
+
+    Reads the file as plain text and ensures every line
+    is normalized into schema-compatible fields.
     """
 
-    def parse(self, file_path: str) -> list[dict]:
-        events = []
+    def parse(self, file_path: str) -> List[Dict[str, Any]]:
+        """
+        Parse a file line by line into normalized events.
+
+        Args:
+            file_path (str): Path to the file to parse.
+
+        Returns:
+            List[Dict[str, Any]]: A list of normalized event dictionaries.
+        """
+        events: List[Dict[str, Any]] = []
         ingested_at = datetime.now(timezone.utc).isoformat()
 
-        if not os.path.exists(file_path):
+        path = Path(file_path)
+        if not path.exists():
+            logger.warning("File does not exist: %s", file_path)
             return events
 
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with path.open("r", encoding="utf-8", errors="ignore") as f:
                 for i, line in enumerate(f, start=1):
                     line = line.strip()
                     if not line:
                         continue
 
                     events.append({
-                        "source": os.path.basename(file_path),                   # schema: source
-                        "file_type": os.path.splitext(file_path)[1].lower() or "raw",
-                        "ingest_time": ingested_at,                             # schema: ingest_time
-                        "line_number": i,                                       # schema: line_number
-                        "message": line,                                        # schema: message
-                        "tags": ""                                              # schema: tags
+                        "source": path.name,
+                        "file_type": path.suffix.lower() or "raw",
+                        "ingest_time": ingested_at,
+                        "line_number": i,
+                        "message": line,
+                        "tags": "",
                     })
-        except Exception as e:
-            print(f"[ERROR] RawHandler failed on {file_path}: {e}")
+            logger.info("Parsed %d events from %s", len(events), path.name)
+        except Exception as exc:  # TODO: narrow exception types
+            logger.error("RawHandler failed on %s: %s", file_path, exc, exc_info=True)
 
         return events
