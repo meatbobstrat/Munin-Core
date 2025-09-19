@@ -51,6 +51,36 @@ Munin-Core takes a different path:
 
 ---
 
+## 🔌 Adding a New Handler
+
+Munin-Core supports pluggable log parsers (“handlers”). A handler is a small Python class that knows how to read a specific log format and normalize it into the common schema.
+
+### Schema fields
+Every event dictionary returned by a handler must include:
+
+- `source` — the file name or source identifier  
+- `file_type` — log format (e.g., `csv`, `evtx`, `raw`)  
+- `ingest_time` — ISO8601 timestamp string  
+- `line_number` — original line or record number (int)  
+- `message` — the main log content (string)  
+- `tags` — free-form string or list of labels  
+
+### How to create a new handler
+1. Create a new file under `ingestor/handlers/`, e.g. `csvlog.py`.  
+2. Import the registry decorator and register the class under an extension name:  
+
+   ```python
+   from .registry import register
+
+   @register("csv")
+   class CSVLogHandler:
+       def parse(self, file_path: str) -> list[dict]:
+           events = []
+           # TODO: parse file into schema-compatible dicts
+           return events
+
+---
+
 ## Security model
 - Reverse proxy (Keycloak/Authelia) with AD or Azure auth + MFA.
 - Roles: `admin`, `operator`, `ingest`.
