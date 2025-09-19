@@ -1,11 +1,10 @@
 import os
-import time
-import json
 import shutil
 import sqlite3
 import threading
+import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
 
 import requests
 from watchdog.events import FileSystemEventHandler
@@ -166,7 +165,7 @@ def retry_worker(stop_evt: threading.Event) -> None:
             send_batch_to_api(batch)
             # On success, delete them
             delete_pending_ids([r["id"] for r in batch])
-        except Exception as e:
+        except Exception:
             # Back off briefly; we'll retry on next tick
             time.sleep(RETRY_INTERVAL_SEC)
 
