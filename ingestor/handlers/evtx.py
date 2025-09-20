@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 # Try to import python-evtx once, fail gracefully in parse()
 try:
     from Evtx.Evtx import Evtx  # type: ignore
+
     _HAVE_EVTX = True
     _IMPORT_ERR: Exception | None = None
 except Exception as e:  # pragma: no cover
@@ -55,7 +56,9 @@ class EVTXHandler:
                     try:
                         xml = record.xml()
                     except Exception as rec_err:
-                        xml = f"<Event parse_error='{type(rec_err).__name__}: {rec_err}'>"
+                        xml = (
+                            f"<Event parse_error='{type(rec_err).__name__}: {rec_err}'>"
+                        )
 
                     events.append(
                         {

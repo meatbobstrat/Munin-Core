@@ -1,5 +1,7 @@
-import pytest
 from pathlib import Path
+
+import pytest
+
 from ingestor.handlers.evtx import EvtxHandler
 
 
@@ -41,4 +43,3 @@ def test_evtx_parsing_fallback_to_faw(tmp_path):
 
     # Fallback should return an empty list, not crash
     assert events == []
-
