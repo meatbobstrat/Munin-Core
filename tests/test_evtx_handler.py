@@ -11,7 +11,7 @@ def test_evtx_parsing_counts():
     fixture_path = Path("tests/fixtures/Security-small.evtx")
     assert fixture_path.exists(), f"Fixture missing: {fixture_path}"
 
-    handler = EVTXHandler()   # <-- fixed name
+    handler = EVTXHandler()  # <-- fixed name
     events = handler.parse(str(fixture_path))
 
     assert isinstance(events, list)
