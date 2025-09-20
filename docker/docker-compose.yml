@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   api_ingest:
     build:
@@ -19,10 +18,18 @@ services:
       dockerfile: docker/Dockerfile.ingestor
     container_name: munin-ingestor
     volumes:
-      - ../logs/incoming:/app/incoming  # drop logs here
+      - ../logs/incoming:/app/logs/incoming
+      - ../logs/processing:/app/logs/processing
+      - ../logs/quarantine:/app/logs/quarantine
+      - ../data:/app/data
     environment:
       - INGEST_API_URL=http://api_ingest:8000/ingest
       - SOURCE_NAME=office1
+      - WATCH_DIR=/app/logs/incoming
+      - PROCESSING_DIR=/app/logs/processing
+      - QUARANTINE_DIR=/app/logs/quarantine
+      - DATA_DIR=/app/data
+      - WATCH_USE_POLLING=1
     depends_on:
       - api_ingest
 

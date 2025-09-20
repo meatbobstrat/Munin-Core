@@ -9,9 +9,18 @@ from typing import Any, Dict, List
 
 import requests
 from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+# Watchdog observer selection (polling is more reliable on Docker/Windows bind mounts)
+USE_POLLING = os.getenv("WATCH_USE_POLLING", "1").lower() in ("1", "true", "yes")
 
-from ingestor.handlers.registry import REGISTRY
+if USE_POLLING:
+    from watchdog.observers.polling import PollingObserver as Observer
+    OBSERVER_NAME = "PollingObserver"
+else:
+    from watchdog.observers import Observer
+    OBSERVER_NAME = "Observer"
+
+
+from ingestor.handlers.registry import get_handler_for
 
 # -----------------------
 # Logging setup
@@ -23,15 +32,15 @@ logging.basicConfig(
 )
 
 # -----------------------
-# Config
+# Config (directory paths from env, with sane defaults)
 # -----------------------
 INGEST_API_URL = os.getenv("INGEST_API_URL", "http://api_ingest:8000/ingest")
 SOURCE_NAME = os.getenv("SOURCE_NAME", "default_source")
 
-INCOMING_DIR = Path("./incoming")
-PROCESSING_DIR = Path("./processing")
-QUARANTINE_DIR = Path("./quarantine")
-DATA_DIR = Path("/app/data")
+INCOMING_DIR = Path(os.getenv("WATCH_DIR", "/app/incoming"))
+PROCESSING_DIR = Path(os.getenv("PROCESSING_DIR", "/app/processing"))
+QUARANTINE_DIR = Path(os.getenv("QUARANTINE_DIR", "/app/quarantine"))
+DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
 DB_PATH = DATA_DIR / "ingestor.db"
 
 # Retry worker tuning
@@ -195,12 +204,9 @@ def is_file_stable(path: Path, wait: float = FILE_STABLE_WAIT) -> bool:
     except FileNotFoundError:
         return False
 
-
 def parse_file_to_events(file_path: Path) -> List[Dict[str, Any]]:
-    """Dispatch to handler by extension. Defaults to raw handler."""
-    ext = file_path.suffix.lower().lstrip(".") or "raw"
-    handler_cls = REGISTRY.get(ext, REGISTRY["raw"])
-    handler = handler_cls()
+    """Dispatch to the best handler for this file, with RawHandler as fallback."""
+    handler = get_handler_for(file_path)
     return handler.parse(str(file_path))
 
 # -----------------------
@@ -213,6 +219,16 @@ class LogHandler(FileSystemEventHandler):
         if event.is_directory:
             return
         self.process_file(Path(event.src_path))
+
+    def on_moved(self, event) -> None:
+        if event.is_directory:
+            return        
+        # process the destination path when a file is moved into the incoming dir
+        dest_path = getattr(event, "dest_path", event.src_path)
+        target = Path(dest_path)
+        if target.parent == INCOMING_DIR:
+            self.process_file(target)
+
 
     def process_file(self, src: Path) -> None:
         """Wait until stable, move to processing, parse, buffer, delete. Quarantine on failure."""
@@ -276,6 +292,12 @@ if __name__ == "__main__":
     t.start()
 
     handler = LogHandler()
+    logger.info(
+        "Config: incoming=%s, processing=%s, quarantine=%s, db=%s",
+        INCOMING_DIR, PROCESSING_DIR, QUARANTINE_DIR, DB_PATH
+    )
+    logger.info("Watcher: using %s", OBSERVER_NAME)
+
     observer = Observer()
     observer.schedule(handler, str(INCOMING_DIR), recursive=False)
     observer.start()

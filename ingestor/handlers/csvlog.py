@@ -1,49 +1,56 @@
-# src/munin/parsers/csvlog.py
+# ingestor/handlers/csvlog.py
 import csv
-import io
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List
 
-from dateutil import parser as dtp
+from .registry import register
 
-from .base import NormalizedEvent, Parser, register
+logger = logging.getLogger(__name__)
 
 
-class CSVParser(Parser):
-    _dialect = csv.excel
+@register("csvlog")
+class CsvLogHandler:
+    """
+    Handler for CSV-formatted log files.
 
-    def sniff(self, sample: str, filename: str) -> float:
+    Each row is normalized into schema-compatible fields.
+    The first row is assumed to be a header.
+    """
+
+    def parse(self, file_path: str) -> List[Dict[str, Any]]:
+        """
+        Parse a CSV file into normalized events.
+
+        Args:
+            file_path (str): Path to the CSV file to parse.
+
+        Returns:
+            List[Dict[str, Any]]: A list of normalized event dictionaries.
+        """
+        events: List[Dict[str, Any]] = []
+        ingested_at = datetime.now(timezone.utc).isoformat()
+
+        path = Path(file_path)
+        if not path.exists():
+            logger.warning("File does not exist: %s", file_path)
+            return events
+
         try:
-            sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(sample)
-            self._dialect = dialect
-            return 0.6
-        except Exception:
-            return 0.0
+            with path.open("r", encoding="utf-8", errors="ignore", newline="") as f:
+                reader = csv.DictReader(f)
+                for i, row in enumerate(reader, start=1):
+                    events.append({
+                        "source": path.name,
+                        "file_type": path.suffix.lower() or "csv",
+                        "ingest_time": ingested_at,
+                        "line_number": i,
+                        "message": row,
+                        "tags": "",
+                    })
+            logger.info("Parsed %d events from %s", len(events), path.name)
+        except Exception as exc:  # TODO: narrow exception types
+            logger.error("CsvLogHandler failed on %s: %s", file_path, exc, exc_info=True)
 
-    def parse_line(self, line: str, line_no: int, filename: str):
-        if line_no == 1:
-            return None  # header
-        reader = csv.reader(io.StringIO(line), dialect=self._dialect)
-        row = next(reader, None)
-        if not row:
-            return None
-        # naive: treat first col as time if parseable
-        ts = None
-        try:
-            ts = row[0]
-            event_time = dtp.parse(ts).isoformat()
-        except Exception:
-            event_time = None
-        msg = ",".join(row[:6])[:500]
-        return NormalizedEvent(
-            source_path=filename,
-            source_type="csv",
-            line_number=line_no,
-            event_time=event_time,
-            level="",
-            message=msg,
-            attrs={"columns": row},
-            raw_excerpt=line,
-        )
-
-
-register(CSVParser())
+        return events
