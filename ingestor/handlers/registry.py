@@ -26,12 +26,11 @@ Example:
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Type
 
 logger = logging.getLogger(__name__)
 
 # Global handler registry: maps extension name → handler class
-REGISTRY: Dict[str, Type] = {}
+REGISTRY: dict[str, type] = {}
 
 
 def register(name: str):
@@ -72,7 +71,7 @@ def get_handler_for(path: Path):
     return handler
 
 
-def sniff_best_handler(sample: str, filename: str) -> Optional[object]:
+def sniff_best_handler(sample: str, filename: str) -> object | None:
     """
     Iterate all registered handlers, ask each for a confidence score,
     and return the handler instance with the highest score.
@@ -80,7 +79,7 @@ def sniff_best_handler(sample: str, filename: str) -> Optional[object]:
     from ingestor.handlers.raw import RawHandler
 
     best_score = 0.0
-    best_handler: Optional[object] = None
+    best_handler: object | None = None
 
     for name, handler_cls in REGISTRY.items():
         handler = handler_cls()

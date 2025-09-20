@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional, Type
 
 from ingestor.handlers.raw import RawHandler  # fallback
 from ingestor.handlers.registry import REGISTRY
@@ -25,7 +24,7 @@ def sniff_file(path: Path, sample_size: int = 5):
 
         sample_text = "\n".join(sample_lines)
 
-        best_handler_cls: Optional[Type] = None
+        best_handler_cls: type | None = None
         best_conf = 0.0
 
         # Let each registered handler sniff

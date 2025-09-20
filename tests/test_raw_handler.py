@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 from ingestor.handlers.raw import RawHandler

@@ -1,7 +1,7 @@
 import json
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from api.utils.quota import enforce_quota_loop
@@ -20,9 +20,9 @@ def ingest(source, level, message, ts=None):
     cur = conn.cursor()
 
     if ts is None:
-        ts = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(timespec="seconds")
+        ts = datetime.utcnow().replace(tzinfo=UTC).isoformat(timespec="seconds")
 
-    ingest_time = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(timespec="seconds")
+    ingest_time = datetime.utcnow().replace(tzinfo=UTC).isoformat(timespec="seconds")
 
     cur.execute(
         """

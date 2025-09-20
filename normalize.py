@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Dict
+from typing import Any
 
 # Support both "package" and "flat script" imports
 try:  # when imported as part of a package (e.g., munin.normalize)
@@ -24,7 +24,7 @@ def choose_parser(sample: str, filename: str):
     return scored[0][1]
 
 
-def content_hash(ev: Dict[str, Any]) -> str:
+def content_hash(ev: dict[str, Any]) -> str:
     """Stable hash for idempotency."""
     key = {
         "source_path": ev.get("source_path"),

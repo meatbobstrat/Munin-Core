@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 
 class StorageBackend(ABC):
@@ -10,11 +10,11 @@ class StorageBackend(ABC):
         """Initialize DB connection and schema if needed."""
 
     @abstractmethod
-    def write_batch(self, events: List[Dict[str, Any]]) -> None:
+    def write_batch(self, events: list[dict[str, Any]]) -> None:
         """Insert a batch of events."""
 
     @abstractmethod
-    def query_events(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def query_events(self, filters: dict[str, Any]) -> list[dict[str, Any]]:
         """Query events (used by UI API)."""
 
     @abstractmethod

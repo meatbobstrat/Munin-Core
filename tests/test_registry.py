@@ -1,7 +1,6 @@
-from pathlib import Path
 
-from ingestor.handlers.registry import get_handler_for
 from ingestor.handlers.raw import RawHandler
+from ingestor.handlers.registry import get_handler_for
 
 
 def test_registry_falls_back_to_raw(tmp_path):

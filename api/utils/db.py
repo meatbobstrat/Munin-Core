@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # <repo root>/memory/munin_memory.db
@@ -77,7 +77,7 @@ def ensure_initialized():
         if cur.fetchone()[0] == 0:
             cur.execute(
                 "INSERT INTO echotime (start_time) VALUES (?)",
-                (datetime.now(timezone.utc).isoformat(timespec="seconds"),),
+                (datetime.now(UTC).isoformat(timespec="seconds"),),
             )
         conn.commit()
 

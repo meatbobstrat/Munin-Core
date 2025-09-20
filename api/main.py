@@ -4,8 +4,8 @@ import json
 # ----- logging -----
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -76,31 +76,31 @@ app = FastAPI(
 # ----- Schemas -----
 class IngestItem(BaseModel):
     source: str = Field(..., min_length=1, max_length=128)
-    level: Optional[Literal["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"]] = "INFO"
+    level: Literal["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"] | None = "INFO"
     message: str = Field(..., min_length=1)
 
 
 class LogItem(BaseModel):
     timestamp: str
-    level: Optional[str]
+    level: str | None
     message: str
     source: str
 
 
 class NormalizedEventModel(BaseModel):
     source_path: str
-    source_type: Optional[str] = None
-    line_number: Optional[int] = None
-    event_time: Optional[str] = None
-    level: Optional[str] = None
+    source_type: str | None = None
+    line_number: int | None = None
+    event_time: str | None = None
+    level: str | None = None
     message: str
-    attrs: Optional[Dict[str, Any]] = None
-    raw_excerpt: Optional[str] = None
+    attrs: dict[str, Any] | None = None
+    raw_excerpt: str | None = None
     content_hash: str
 
 
 class BatchIngest(BaseModel):
-    events: List[NormalizedEventModel]
+    events: list[NormalizedEventModel]
 
 
 # ----- Routes -----
@@ -117,7 +117,7 @@ def health():
 # Legacy single-line ingest (kept for compatibility)
 @app.post("/ingest", response_model=dict)
 def ingest(item: IngestItem):
-    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ts = datetime.now(UTC).isoformat(timespec="seconds")
     try:
         with get_conn() as conn:
             conn.execute(
@@ -127,7 +127,7 @@ def ingest(item: IngestItem):
             conn.commit()
         return {"ok": True, "timestamp": ts}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}") from e
 
 
 # NEW: batched, normalized ingest
@@ -165,11 +165,11 @@ def ingest_batch(payload: BatchIngest):
             conn.commit()
         return {"ok": True, "inserted": inserted, "received": len(payload.events)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}") from e
 
 
-@app.get("/logs", response_model=List[LogItem])
-def get_logs(source: Optional[str] = None, limit: int = 10):
+@app.get("/logs", response_model=list[LogItem])
+def get_logs(source: str | None = None, limit: int = 10):
     try:
         with get_conn() as conn:
             if source:
@@ -186,12 +186,12 @@ def get_logs(source: Optional[str] = None, limit: int = 10):
             rows = [LogItem(**dict(r)) for r in cur.fetchall()]
         return rows
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}") from e
 
 
 # NEW: query structured/normalized events
 @app.get("/events")
-def list_events(source: Optional[str] = None, level: Optional[str] = None, limit: int = 200):
+def list_events(source: str | None = None, level: str | None = None, limit: int = 200):
     try:
         with get_conn() as conn:
             q = "SELECT * FROM normalized_events"
@@ -210,4 +210,4 @@ def list_events(source: Optional[str] = None, level: Optional[str] = None, limit
             rows = [dict(r) for r in cur.fetchall()]
         return {"events": rows}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}") from e

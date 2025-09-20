@@ -5,7 +5,7 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import requests
 from watchdog.events import FileSystemEventHandler
@@ -84,7 +84,7 @@ def init_db() -> None:
     conn.close()
 
 
-def buffer_events(events: List[Dict[str, Any]]) -> None:
+def buffer_events(events: list[dict[str, Any]]) -> None:
     if not events:
         return
     conn = sqlite3.connect(DB_PATH)
@@ -100,7 +100,7 @@ def buffer_events(events: List[Dict[str, Any]]) -> None:
     conn.close()
 
 
-def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
+def fetch_pending_batch(limit: int) -> list[dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -115,10 +115,10 @@ def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
     rows = cur.fetchall()
     conn.close()
     keys = ["id", "source", "file_type", "ingest_time", "line_number", "message", "tags"]
-    return [dict(zip(keys, row)) for row in rows]
+    return [dict(zip(keys, row, strict=False)) for row in rows]
 
 
-def delete_pending_ids(ids: List[int]) -> None:
+def delete_pending_ids(ids: list[int]) -> None:
     if not ids:
         return
     conn = sqlite3.connect(DB_PATH)
@@ -142,7 +142,7 @@ def add_quarantine_index(filename: str, reason: str) -> None:
 # -----------------------
 # API send
 # -----------------------
-def send_batch_to_api(batch_rows: List[Dict[str, Any]]) -> None:
+def send_batch_to_api(batch_rows: list[dict[str, Any]]) -> None:
     if not batch_rows:
         return
     events = [
@@ -200,7 +200,7 @@ def is_file_stable(path: Path, wait: float = FILE_STABLE_WAIT) -> bool:
         return False
 
 
-def parse_file_to_events(file_path: Path) -> List[Dict[str, Any]]:
+def parse_file_to_events(file_path: Path) -> list[dict[str, Any]]:
     parser = sniff_file(file_path)
     if parser:
         return parser.parse(str(file_path))

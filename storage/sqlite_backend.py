@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from typing import Any, Dict, List
+from typing import Any
 
 from .base import StorageBackend
 
@@ -58,7 +58,7 @@ class SQLiteBackend(StorageBackend):
 
         # TODO: add alert hook here (event_type="prune", details={...})
 
-    def write_batch(self, events: List[Dict[str, Any]]) -> None:
+    def write_batch(self, events: list[dict[str, Any]]) -> None:
         """Write events, pruning if DB exceeds max size."""
         cur = self.conn.cursor()
         cur.executemany(
@@ -73,7 +73,7 @@ class SQLiteBackend(StorageBackend):
         if self._db_size_mb() > self.max_db_size_mb:
             self._prune_oldest_rows()
 
-    def query_events(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def query_events(self, filters: dict[str, Any]) -> list[dict[str, Any]]:
         cur = self.conn.cursor()
         query = "SELECT * FROM events WHERE 1=1"
         params = []
@@ -87,7 +87,7 @@ class SQLiteBackend(StorageBackend):
 
         cur.execute(query, params)
         rows = cur.fetchall()
-        return [dict(zip([c[0] for c in cur.description], row)) for row in rows]
+        return [dict(zip([c[0] for c in cur.description], row, strict=False)) for row in rows]
 
     def close(self):
         if self.conn:

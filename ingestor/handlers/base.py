@@ -1,9 +1,9 @@
 # src/munin/parsers/base.py
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 
-class NormalizedEvent(Dict[str, Any]):
+class NormalizedEvent(dict[str, Any]):
     """
     Dict with normalized keys:
     - source_path: str
@@ -26,7 +26,7 @@ class Parser(ABC):
         """
 
     @abstractmethod
-    def parse_line(self, line: str, line_no: int, filename: str) -> Optional[NormalizedEvent]:
+    def parse_line(self, line: str, line_no: int, filename: str) -> NormalizedEvent | None:
         """
         Parse a single line into a NormalizedEvent.
         Return None if the line should be skipped.
@@ -41,7 +41,7 @@ def register(parser: Parser):
     REGISTRY.append(parser)
 
 
-def best_parser(sample: str, filename: str) -> Optional[Parser]:
+def best_parser(sample: str, filename: str) -> Parser | None:
     """
     Run sniff() across all registered parsers and return the highest-confidence parser.
     If all return 0, return None (caller should fall back to RawParser or quarantine).

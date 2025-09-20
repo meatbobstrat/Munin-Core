@@ -1,8 +1,8 @@
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from .registry import register
 
@@ -36,9 +36,9 @@ class LogFileHandler:
             return 0.0
         return hits / checked
 
-    def parse(self, file_path: str) -> List[Dict[str, Any]]:
-        events: List[Dict[str, Any]] = []
-        ingested_at = datetime.now(timezone.utc).isoformat()
+    def parse(self, file_path: str) -> list[dict[str, Any]]:
+        events: list[dict[str, Any]] = []
+        ingested_at = datetime.now(UTC).isoformat()
         path = Path(file_path)
 
         try:

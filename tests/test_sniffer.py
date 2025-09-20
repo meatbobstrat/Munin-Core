@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from ingestor.sniffer import sniff_file
 from ingestor.handlers.raw import RawHandler
+from ingestor.sniffer import sniff_file
 
 
 def test_sniffer_falls_back_to_raw(tmp_path: Path):
