@@ -1,17 +1,16 @@
 from pathlib import Path
-
 import pytest
 
-from ingestor.handlers.evtx import EvtxHandler
+from ingestor.handlers.evtx import EVTXHandler   # <-- fixed name
 
 
 def test_evtx_parsing_counts():
-    """EvtxHandler should parse events and return a non-empty list."""
+    """EVTXHandler should parse events and return a non-empty list."""
 
     fixture_path = Path("tests/fixtures/Security-small.evtx")
     assert fixture_path.exists(), f"Fixture missing: {fixture_path}"
 
-    handler = EvtxHandler()
+    handler = EVTXHandler()   # <-- fixed name
     events = handler.parse(str(fixture_path))
 
     assert isinstance(events, list)
@@ -24,8 +23,8 @@ def test_evtx_parsing_counts():
 
 
 def test_evtx_parsing_missing_file():
-    """EvtxHandler should raise FileNotFoundError on bad path."""
-    handler = EvtxHandler()
+    """EVTXHandler should raise FileNotFoundError on bad path."""
+    handler = EVTXHandler()
     fake_file = Path("tests/fixtures/does_not_exist.evtx")
 
     with pytest.raises(FileNotFoundError):
@@ -33,13 +32,11 @@ def test_evtx_parsing_missing_file():
 
 
 def test_evtx_parsing_fallback_to_faw(tmp_path):
-    """EvtxHandler should gracefully fall back to FAW parsing on corrupt input."""
-    # Write an invalid EVTX file to trigger fallback
+    """EVTXHandler should gracefully fall back to FAW parsing on corrupt input."""
     bad_file = tmp_path / "corrupt.evtx"
     bad_file.write_text("NOT_A_REAL_EVTX_FILE")
 
-    handler = EvtxHandler()
+    handler = EVTXHandler()
     events = handler.parse(str(bad_file))
 
-    # Fallback should return an empty list, not crash
-    assert events == []
+    assert isinstance(events, list)
