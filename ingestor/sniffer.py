@@ -1,9 +1,9 @@
 import logging
 from pathlib import Path
 
+from ingestor.handlers.evtx import EVTXHandler
 from ingestor.handlers.raw import RawHandler  # fallback
 from ingestor.handlers.registry import REGISTRY
-from ingestor.handlers.evtx import EVTXHandler
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def sniff_file(path: Path, sample_size: int = 5):
             return EVTXHandler()
     except Exception:
         pass
-    
+
     try:
         sample_lines = []
         with path.open("r", encoding="utf-8", errors="ignore") as f:

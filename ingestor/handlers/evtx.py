@@ -1,8 +1,8 @@
 # ingestor/handlers/evtx.py
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from .registry import register
 
@@ -38,15 +38,15 @@ class EVTXHandler:
         except Exception:
             return False
 
-    def parse(self, file_path: str) -> List[Dict[str, Any]]:
+    def parse(self, file_path: str) -> list[dict[str, Any]]:
         if not _HAVE_EVTX:
             raise RuntimeError(
                 "python-evtx is not installed; cannot parse .evtx files"
                 + (f" ({_IMPORT_ERR})" if _IMPORT_ERR else "")
             )
 
-        events: List[Dict[str, Any]] = []
-        ingested_at = datetime.now(timezone.utc).isoformat()
+        events: list[dict[str, Any]] = []
+        ingested_at = datetime.now(UTC).isoformat()
         path = Path(file_path)
 
         try:
