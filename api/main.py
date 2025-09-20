@@ -39,8 +39,12 @@ def ensure_normalized_schema() -> None:
           content_hash TEXT
         );
         """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_norm_time ON normalized_events (event_time);")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_norm_src  ON normalized_events (source_path);")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_norm_time ON normalized_events (event_time);"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_norm_src  ON normalized_events (source_path);"
+        )
         cur.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_norm_hash ON normalized_events (content_hash);"
         )

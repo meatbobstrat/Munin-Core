@@ -37,7 +37,9 @@ def sniff_file(path: Path, sample_size: int = 5):
                         best_conf = conf
                         best_handler_cls = handler_cls
                 except Exception as e:
-                    logger.debug("Handler %s sniff failed on %s: %s", name, path.name, e)
+                    logger.debug(
+                        "Handler %s sniff failed on %s: %s", name, path.name, e
+                    )
 
         if best_handler_cls:
             logger.debug(

@@ -56,7 +56,9 @@ def _ensure_ingest_time_column(conn: sqlite3.Connection) -> None:
             DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
         """)
         # Optional index to speed up time-based pruning
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_ingest_time ON logs(ingest_time_utc)")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_logs_ingest_time ON logs(ingest_time_utc)"
+        )
 
 
 def ensure_initialized():
@@ -94,7 +96,9 @@ def get_conn() -> sqlite3.Connection:
 # ---------- helpers we’ll use next steps ----------
 
 
-def emit_alert(level: str, code: str, message: str, metadata_json: str | None = None) -> None:
+def emit_alert(
+    level: str, code: str, message: str, metadata_json: str | None = None
+) -> None:
     """
     Insert a row into alerts table. metadata_json may be a JSON-serialized string or None.
     """

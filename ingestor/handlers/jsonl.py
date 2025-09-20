@@ -27,7 +27,9 @@ class JSONLParser(Parser):
             return None
         # common fields
         ts = obj.get("ts") or obj.get("time") or obj.get("timestamp")
-        level = (obj.get("level") or obj.get("lvl") or obj.get("severity") or "").upper()
+        level = (
+            obj.get("level") or obj.get("lvl") or obj.get("severity") or ""
+        ).upper()
         msg = obj.get("msg") or obj.get("message") or obj.get("event") or line[:500]
         try:
             event_time = dtp.parse(ts).isoformat() if ts else None

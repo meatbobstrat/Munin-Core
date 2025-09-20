@@ -26,7 +26,9 @@ class Parser(ABC):
         """
 
     @abstractmethod
-    def parse_line(self, line: str, line_no: int, filename: str) -> NormalizedEvent | None:
+    def parse_line(
+        self, line: str, line_no: int, filename: str
+    ) -> NormalizedEvent | None:
         """
         Parse a single line into a NormalizedEvent.
         Return None if the line should be skipped.

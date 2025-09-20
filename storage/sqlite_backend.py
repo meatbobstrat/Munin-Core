@@ -87,7 +87,10 @@ class SQLiteBackend(StorageBackend):
 
         cur.execute(query, params)
         rows = cur.fetchall()
-        return [dict(zip([c[0] for c in cur.description], row, strict=False)) for row in rows]
+        return [
+            dict(zip([c[0] for c in cur.description], row, strict=False))
+            for row in rows
+        ]
 
     def close(self):
         if self.conn:

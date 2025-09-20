@@ -59,6 +59,8 @@ class LogFileHandler:
                     )
             logger.info("Parsed %d log events from %s", len(events), path.name)
         except Exception as exc:
-            logger.error("LogFileHandler failed on %s: %s", file_path, exc, exc_info=True)
+            logger.error(
+                "LogFileHandler failed on %s: %s", file_path, exc, exc_info=True
+            )
 
         return events

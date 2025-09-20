@@ -53,6 +53,8 @@ class CsvLogHandler:
                     )
             logger.info("Parsed %d events from %s", len(events), path.name)
         except Exception as exc:  # TODO: narrow exception types
-            logger.error("CsvLogHandler failed on %s: %s", file_path, exc, exc_info=True)
+            logger.error(
+                "CsvLogHandler failed on %s: %s", file_path, exc, exc_info=True
+            )
 
         return events

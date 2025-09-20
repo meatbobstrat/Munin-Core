@@ -114,7 +114,15 @@ def fetch_pending_batch(limit: int) -> list[dict[str, Any]]:
     )
     rows = cur.fetchall()
     conn.close()
-    keys = ["id", "source", "file_type", "ingest_time", "line_number", "message", "tags"]
+    keys = [
+        "id",
+        "source",
+        "file_type",
+        "ingest_time",
+        "line_number",
+        "message",
+        "tags",
+    ]
     return [dict(zip(keys, row, strict=False)) for row in rows]
 
 
@@ -244,7 +252,9 @@ class LogHandler(FileSystemEventHandler):
                 raise ValueError("Parser returned no events (after sniff fallback)")
             buffer_events(events)
             dest.unlink(missing_ok=True)
-            logger.info("Buffered %d events from %s; file deleted", len(events), dest.name)
+            logger.info(
+                "Buffered %d events from %s; file deleted", len(events), dest.name
+            )
         except Exception as e:
             QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
             qpath = QUARANTINE_DIR / dest.name
@@ -298,7 +308,9 @@ if __name__ == "__main__":
         if fpath.is_file():
             handler.process_file(fpath)
 
-    logger.info("Watching %s (buffer→delete; quarantine on parse failure)", INCOMING_DIR)
+    logger.info(
+        "Watching %s (buffer→delete; quarantine on parse failure)", INCOMING_DIR
+    )
     try:
         while True:
             time.sleep(1)

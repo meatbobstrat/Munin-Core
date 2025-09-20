@@ -14,7 +14,10 @@ def query(source=None, limit=10):
             (source, limit),
         )
     else:
-        cur.execute("SELECT timestamp, level, message FROM logs ORDER BY id DESC LIMIT ?", (limit,))
+        cur.execute(
+            "SELECT timestamp, level, message FROM logs ORDER BY id DESC LIMIT ?",
+            (limit,),
+        )
     rows = cur.fetchall()
     conn.close()
     return rows

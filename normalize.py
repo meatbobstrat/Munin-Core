@@ -33,4 +33,6 @@ def content_hash(ev: dict[str, Any]) -> str:
         "message": ev.get("message"),
         "attrs": ev.get("attrs"),
     }
-    return hashlib.sha256(json.dumps(key, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        json.dumps(key, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()

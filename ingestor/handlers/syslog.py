@@ -25,7 +25,11 @@ class SyslogParser(Parser):
             event_time = None
         msg = d["msg"]
         # simple level heuristic
-        level = "ERROR" if re.search(r"\b(fail|error|critical|denied)\b", msg, re.I) else "INFO"
+        level = (
+            "ERROR"
+            if re.search(r"\b(fail|error|critical|denied)\b", msg, re.I)
+            else "INFO"
+        )
         attrs = {"host": d["host"], "tag": d["tag"]}
         return NormalizedEvent(
             source_path=filename,

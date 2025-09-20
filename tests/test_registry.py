@@ -1,4 +1,3 @@
-
 from ingestor.handlers.raw import RawHandler
 from ingestor.handlers.registry import get_handler_for
 
