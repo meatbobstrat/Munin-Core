@@ -3,6 +3,7 @@ from pathlib import Path
 
 from ingestor.handlers.raw import RawHandler  # fallback
 from ingestor.handlers.registry import REGISTRY
+from ingestor.handlers.evtx import EVTXHandler
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,14 @@ def sniff_file(path: Path, sample_size: int = 5):
     - Reads the first `sample_size` lines as a sample.
     - Returns a handler instance.
     """
+    try:
+        with path.open("rb") as bf:
+            magic = bf.read(7)
+        if magic == EVTXHandler.EVTX_MAGIC:
+            return EVTXHandler()
+    except Exception:
+        pass
+    
     try:
         sample_lines = []
         with path.open("r", encoding="utf-8", errors="ignore") as f:

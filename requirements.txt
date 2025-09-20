@@ -7,6 +7,7 @@ uvicorn[standard]>=0.35,<0.36
 watchdog>=3.0,<5.0
 requests>=2.31,<3.0
 python-dateutil>=2.9.0.post0
+python-evtx>=0.6.0
 
 # --- Optional but common for FastAPI/Pydantic on some envs ---
 typing-extensions>=4.9,<5.0
