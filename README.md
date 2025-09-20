@@ -1,4 +1,7 @@
 [![CI](https://github.com/meatbobstrat/Munin-Core/actions/workflows/ci.yml/badge.svg)](https://github.com/meatbobstrat/Munin-Core/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/meatbobstrat/Munin-Core)](https://github.com/meatbobstrat/Munin-Core/blob/main/LICENSE)
+![Python](https://img.shields.io/badge/python-3.12%20|%203.13-blue)
+
 
 # Munin-Core
 
