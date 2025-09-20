@@ -4,10 +4,11 @@ import sqlite3
 from .db import DB_PATH, emit_alert, get_db_size_bytes
 
 # configurable thresholds
-HIGH_WM_GIB = float(os.getenv("HIGH_WM_GIB", "9"))   # pause if bigger than this
-LOW_WM_GIB  = float(os.getenv("LOW_WM_GIB",  "8"))   # prune until under this
+HIGH_WM_GIB = float(os.getenv("HIGH_WM_GIB", "9"))  # pause if bigger than this
+LOW_WM_GIB = float(os.getenv("LOW_WM_GIB", "8"))  # prune until under this
 RETENTION_DAYS = int(os.getenv("RETENTION_DAYS", "7"))
 DELETE_BATCH = int(os.getenv("PRUNE_DELETE_BATCH", "50000"))
+
 
 def enforce_quota_loop() -> bool:
     """
@@ -38,9 +39,10 @@ def enforce_quota_loop() -> bool:
             if deleted <= 0:
                 # nothing left old enough to prune
                 emit_alert(
-                    "error", "STORAGE_HIGH",
+                    "error",
+                    "STORAGE_HIGH",
                     "DB above high watermark and no old rows to delete",
-                    f'{{"high_gib": {HIGH_WM_GIB}, "low_gib": {LOW_WM_GIB}}}'
+                    f'{{"high_gib": {HIGH_WM_GIB}, "low_gib": {LOW_WM_GIB}}}',
                 )
                 return False
         return get_db_size_bytes() <= LOW_WM_GIB * (1 << 30)

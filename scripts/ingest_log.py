@@ -8,6 +8,7 @@ from api.utils.quota import enforce_quota_loop
 
 DB_PATH = Path(__file__).resolve().parents[1] / "memory" / "munin_memory.db"
 
+
 def ingest(source, level, message, ts=None):
     # run quota check before writing
     ok = enforce_quota_loop()
@@ -33,6 +34,7 @@ def ingest(source, level, message, ts=None):
 
     conn.commit()
     conn.close()
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:

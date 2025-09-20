@@ -51,7 +51,9 @@ class SQLiteBackend(StorageBackend):
 
         cur = self.conn.cursor()
         while self._db_size_mb() > target_size_mb:
-            cur.execute("DELETE FROM events WHERE id IN (SELECT id FROM events ORDER BY id ASC LIMIT 1000)")
+            cur.execute(
+                "DELETE FROM events WHERE id IN (SELECT id FROM events ORDER BY id ASC LIMIT 1000)"
+            )
             self.conn.commit()
 
         # TODO: add alert hook here (event_type="prune", details={...})
@@ -59,10 +61,13 @@ class SQLiteBackend(StorageBackend):
     def write_batch(self, events: List[Dict[str, Any]]) -> None:
         """Write events, pruning if DB exceeds max size."""
         cur = self.conn.cursor()
-        cur.executemany("""
+        cur.executemany(
+            """
         INSERT INTO events (source, file_type, ingest_time, line_number, message, tags)
         VALUES (:source, :file_type, :ingest_time, :line_number, :message, :tags)
-        """, events)
+        """,
+            events,
+        )
         self.conn.commit()
 
         if self._db_size_mb() > self.max_db_size_mb:

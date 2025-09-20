@@ -6,6 +6,7 @@ app = FastAPI()
 backend = get_storage_backend("sqlite", db_path="munin.db")
 backend.connect()
 
+
 @app.post("/ingest")
 def ingest(data: dict):
     events = data.get("events", [])

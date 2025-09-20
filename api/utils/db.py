@@ -37,9 +37,11 @@ CREATE TABLE IF NOT EXISTS echotime (
 );
 """
 
+
 def _column_exists(conn: sqlite3.Connection, table: str, col: str) -> bool:
     cur = conn.execute(f"PRAGMA table_info({table})")
     return any(r[1] == col for r in cur.fetchall())
+
 
 def _ensure_ingest_time_column(conn: sqlite3.Connection) -> None:
     """
@@ -55,6 +57,7 @@ def _ensure_ingest_time_column(conn: sqlite3.Connection) -> None:
         """)
         # Optional index to speed up time-based pruning
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_ingest_time ON logs(ingest_time_utc)")
+
 
 def ensure_initialized():
     """Create DB file and required tables if missing; set ET 0.0.0 if not set."""
@@ -78,6 +81,7 @@ def ensure_initialized():
             )
         conn.commit()
 
+
 def get_conn() -> sqlite3.Connection:
     """Return a connection; ensures DB/schema exist."""
     if not DB_PATH.exists():
@@ -86,7 +90,9 @@ def get_conn() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
+
 # ---------- helpers we’ll use next steps ----------
+
 
 def emit_alert(level: str, code: str, message: str, metadata_json: str | None = None) -> None:
     """
@@ -99,6 +105,7 @@ def emit_alert(level: str, code: str, message: str, metadata_json: str | None = 
             (level, code, message, metadata_json),
         )
         conn.commit()
+
 
 def get_db_size_bytes() -> int:
     """

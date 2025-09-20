@@ -2,6 +2,7 @@ from .sqlite_backend import SQLiteBackend
 
 # from .postgres_backend import PostgresBackend  # (future)
 
+
 def get_storage_backend(db_type="sqlite", **kwargs):
     if db_type == "sqlite":
         return SQLiteBackend(**kwargs)
