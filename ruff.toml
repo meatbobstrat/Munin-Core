@@ -1,0 +1,37 @@
+# ruff.toml
+
+# Match your project’s Python version
+target-version = "py313"
+
+# Enable common linting rules
+lint.select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "W",   # pycodestyle warnings
+  "I",   # isort (imports)
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+]
+
+# Exclude common generated dirs
+exclude = [
+  ".git",
+  "__pycache__",
+  ".venv",
+  "venv",
+  "build",
+  "dist",
+  "logs",
+]
+
+# Ignore specific rules if needed
+lint.ignore = [
+  "E501",  # line length (we'll let formatter handle this)
+]
+
+# Formatting options (ruff format)
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true

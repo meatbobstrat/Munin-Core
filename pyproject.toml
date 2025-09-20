@@ -6,3 +6,7 @@ exclude = ["db", "logs", ".venv", "venv", "frontend/dist", "__pycache__"]
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]  # ignore long lines for now
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
