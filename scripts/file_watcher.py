@@ -9,18 +9,23 @@ from typing import Any, Dict, List
 
 import requests
 from watchdog.events import FileSystemEventHandler
-# Watchdog observer selection (polling is more reliable on Docker/Windows bind mounts)
-USE_POLLING = os.getenv("WATCH_USE_POLLING", "1").lower() in ("1", "true", "yes")
 
+from ingestor.handlers.raw import RawHandler
+from ingestor.handlers.registry import get_handler_for
+from ingestor.sniffer import sniff_file
+
+# -----------------------
+# Watchdog observer selection (polling is more reliable on Docker/Windows bind mounts)
+# -----------------------
+USE_POLLING = os.getenv("WATCH_USE_POLLING", "1").lower() in ("1", "true", "yes")
 if USE_POLLING:
     from watchdog.observers.polling import PollingObserver as Observer
+
     OBSERVER_NAME = "PollingObserver"
 else:
     from watchdog.observers import Observer
+
     OBSERVER_NAME = "Observer"
-
-
-from ingestor.handlers.registry import get_handler_for
 
 # -----------------------
 # Logging setup
@@ -48,15 +53,14 @@ RETRY_INTERVAL_SEC = int(os.getenv("RETRY_INTERVAL_SEC", "3"))
 RETRY_BATCH_SIZE = int(os.getenv("RETRY_BATCH_SIZE", "500"))
 FILE_STABLE_WAIT = 0.5
 
+
 # -----------------------
 # SQLite queue
 # -----------------------
 def init_db() -> None:
-    """Initialize the SQLite database with required tables."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pending_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,7 +72,6 @@ def init_db() -> None:
             tags TEXT
         )
     """)
-
     cur.execute("""
         CREATE TABLE IF NOT EXISTS quarantine_index (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,13 +80,11 @@ def init_db() -> None:
             quarantined_at TEXT NOT NULL
         )
     """)
-
     conn.commit()
     conn.close()
 
 
 def buffer_events(events: List[Dict[str, Any]]) -> None:
-    """Write parsed-good events to the pending queue."""
     if not events:
         return
     conn = sqlite3.connect(DB_PATH)
@@ -92,7 +93,7 @@ def buffer_events(events: List[Dict[str, Any]]) -> None:
         """
         INSERT INTO pending_events (source, file_type, ingest_time, line_number, message, tags)
         VALUES (:source, :file_type, :ingest_time, :line_number, :message, :tags)
-        """,
+    """,
         events,
     )
     conn.commit()
@@ -100,7 +101,6 @@ def buffer_events(events: List[Dict[str, Any]]) -> None:
 
 
 def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
-    """Fetch up to `limit` events from the pending queue."""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -109,7 +109,7 @@ def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
         FROM pending_events
         ORDER BY id ASC
         LIMIT ?
-        """,
+    """,
         (limit,),
     )
     rows = cur.fetchall()
@@ -119,7 +119,6 @@ def fetch_pending_batch(limit: int) -> List[Dict[str, Any]]:
 
 
 def delete_pending_ids(ids: List[int]) -> None:
-    """Delete events from the pending queue by ID."""
     if not ids:
         return
     conn = sqlite3.connect(DB_PATH)
@@ -130,7 +129,6 @@ def delete_pending_ids(ids: List[int]) -> None:
 
 
 def add_quarantine_index(filename: str, reason: str) -> None:
-    """Add a quarantine record for tracking failed ingests."""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute(
@@ -140,14 +138,13 @@ def add_quarantine_index(filename: str, reason: str) -> None:
     conn.commit()
     conn.close()
 
+
 # -----------------------
 # API send
 # -----------------------
 def send_batch_to_api(batch_rows: List[Dict[str, Any]]) -> None:
-    """Send a batch of events (already parsed) to the API. Raises on failure."""
     if not batch_rows:
         return
-
     events = [
         {
             "source": r["source"],
@@ -159,7 +156,6 @@ def send_batch_to_api(batch_rows: List[Dict[str, Any]]) -> None:
         }
         for r in batch_rows
     ]
-
     payload = {
         "source": SOURCE_NAME,
         "file_type": events[0].get("file_type", "unknown"),
@@ -169,33 +165,32 @@ def send_batch_to_api(batch_rows: List[Dict[str, Any]]) -> None:
     response = requests.post(INGEST_API_URL, json=payload, timeout=10)
     response.raise_for_status()
 
+
 # -----------------------
 # Retry worker
 # -----------------------
 def retry_worker(stop_evt: threading.Event) -> None:
-    """Continuously flush pending_events to the API."""
     while not stop_evt.is_set():
         try:
             batch = fetch_pending_batch(RETRY_BATCH_SIZE)
             if not batch:
                 time.sleep(RETRY_INTERVAL_SEC)
                 continue
-
             send_batch_to_api(batch)
             delete_pending_ids([r["id"] for r in batch])
             logger.info("Successfully flushed %d events", len(batch))
         except requests.RequestException as rexc:
             logger.warning("Network/API error during retry: %s", rexc)
             time.sleep(RETRY_INTERVAL_SEC)
-        except Exception as exc:  # TODO: narrow exception types
+        except Exception as exc:
             logger.error("Unexpected error in retry_worker: %s", exc, exc_info=True)
             time.sleep(RETRY_INTERVAL_SEC)
+
 
 # -----------------------
 # Helpers
 # -----------------------
 def is_file_stable(path: Path, wait: float = FILE_STABLE_WAIT) -> bool:
-    """Return True if file size stops changing during a short wait."""
     try:
         s1 = path.stat().st_size
         time.sleep(wait)
@@ -204,34 +199,34 @@ def is_file_stable(path: Path, wait: float = FILE_STABLE_WAIT) -> bool:
     except FileNotFoundError:
         return False
 
+
 def parse_file_to_events(file_path: Path) -> List[Dict[str, Any]]:
-    """Dispatch to the best handler for this file, with RawHandler as fallback."""
-    handler = get_handler_for(file_path)
-    return handler.parse(str(file_path))
+    parser = sniff_file(file_path)
+    if parser:
+        return parser.parse(str(file_path))
+    try:
+        handler = get_handler_for(file_path)
+        return handler.parse(str(file_path))
+    except Exception:
+        return RawHandler().parse(str(file_path))
+
 
 # -----------------------
 # Watcher
 # -----------------------
 class LogHandler(FileSystemEventHandler):
-    """Watches the incoming directory and processes new files."""
-
     def on_created(self, event) -> None:
-        if event.is_directory:
-            return
-        self.process_file(Path(event.src_path))
+        if not event.is_directory:
+            self.process_file(Path(event.src_path))
 
     def on_moved(self, event) -> None:
-        if event.is_directory:
-            return        
-        # process the destination path when a file is moved into the incoming dir
-        dest_path = getattr(event, "dest_path", event.src_path)
-        target = Path(dest_path)
-        if target.parent == INCOMING_DIR:
-            self.process_file(target)
-
+        if not event.is_directory:
+            dest_path = getattr(event, "dest_path", event.src_path)
+            target = Path(dest_path)
+            if target.parent == INCOMING_DIR:
+                self.process_file(target)
 
     def process_file(self, src: Path) -> None:
-        """Wait until stable, move to processing, parse, buffer, delete. Quarantine on failure."""
         while not is_file_stable(src):
             time.sleep(FILE_STABLE_WAIT)
 
@@ -246,22 +241,7 @@ class LogHandler(FileSystemEventHandler):
         try:
             events = parse_file_to_events(dest)
             if not events:
-                raise ValueError("Parser returned no events")
-        except Exception as e:
-            QUARANTINE_DIR.mkdir(parents=True, exist_ok=True)
-            qpath = QUARANTINE_DIR / dest.name
-            try:
-                shutil.move(str(dest), str(qpath))
-                note = qpath.with_suffix(qpath.suffix + ".note")
-                with open(note, "w", encoding="utf-8") as f:
-                    f.write(f"Failed to parse {dest.name}\nReason: {e}\n")
-                add_quarantine_index(qpath.name, str(e))
-                logger.warning("Quarantined %s due to parse error: %s", dest.name, e)
-            except Exception as qe:
-                logger.critical("Could not quarantine %s: %s", dest, qe, exc_info=True)
-            return
-
-        try:
+                raise ValueError("Parser returned no events (after sniff fallback)")
             buffer_events(events)
             dest.unlink(missing_ok=True)
             logger.info("Buffered %d events from %s; file deleted", len(events), dest.name)
@@ -272,11 +252,19 @@ class LogHandler(FileSystemEventHandler):
                 shutil.move(str(dest), str(qpath))
                 note = qpath.with_suffix(qpath.suffix + ".note")
                 with open(note, "w", encoding="utf-8") as f:
-                    f.write(f"Failed to buffer events from {dest.name}\nReason: {e}\n")
-                add_quarantine_index(qpath.name, f"buffer failure: {e}")
-                logger.error("Quarantined %s due to buffer failure", dest.name)
+                    f.write(f"Failed to parse {dest.name}\n")
+                    f.write(f"Reason: {type(e).__name__}: {e}\n")
+                    if "binary" in str(e).lower():
+                        f.write("Hint: file appears to be binary/unsupported format.\n")
+                    elif "no events" in str(e).lower():
+                        f.write("Hint: file was readable but produced no events.\n")
+                    else:
+                        f.write("Hint: unexpected parser error.\n")
+                add_quarantine_index(qpath.name, str(e))
+                logger.warning("Quarantined %s due to parse error: %s", dest.name, e)
             except Exception as qe:
-                logger.critical("Could not quarantine after buffer failure %s: %s", dest, qe, exc_info=True)
+                logger.critical("Could not quarantine %s: %s", dest, qe, exc_info=True)
+
 
 # -----------------------
 # Main
@@ -294,7 +282,10 @@ if __name__ == "__main__":
     handler = LogHandler()
     logger.info(
         "Config: incoming=%s, processing=%s, quarantine=%s, db=%s",
-        INCOMING_DIR, PROCESSING_DIR, QUARANTINE_DIR, DB_PATH
+        INCOMING_DIR,
+        PROCESSING_DIR,
+        QUARANTINE_DIR,
+        DB_PATH,
     )
     logger.info("Watcher: using %s", OBSERVER_NAME)
 
