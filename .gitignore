@@ -6,3 +6,4 @@ __pycache__/
 # Coverage & DB artifacts
 .coverage
 *.db
+data/ingestor.db
