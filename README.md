@@ -8,7 +8,7 @@
 Every org should have access to a good SIEM.
 
 AI-assisted log ingestion & visibility engine.  
-Replaces the brittle "rules & correlation" layer of legacy SIEMs with GPT-powered context, summaries, and annotations.
+Replaces the brittle "rules & correlation" layer of legacy SIEMs with AI-powered context, summaries, and annotations.
 
 ---
 
@@ -21,7 +21,7 @@ Munin-Core takes a different path:
 - **Standalone ingestors** – lightweight containers that watch sources and push to the API.
 - **AI enrichment** – GPT adds summaries, highlights secrets/PII, detects anomalies.
 - **Chat-driven interface** – ask natural questions, get contextual answers.
-- **Memory sandbox** – the AI keeps its own notes, anchored in EchoTime epochs.
+- **Memory sandbox** – the AI keeps its own notes.
 - **Security by design** – MFA, AD/Azure auth, HMAC-signed ingestion, audit logs, hardened host.
 
 ---
@@ -88,7 +88,7 @@ Every event dictionary returned by a handler must include:
 - Reverse proxy (Keycloak/Authelia) with AD or Azure auth + MFA.
 - Roles: `admin`, `operator`, `ingest`.
 - Ingest: HMAC-signed batches.
-- Sandboxed LLM `notes` table for self-reference (EchoTime).
+- Sandboxed LLM `notes` table for self-reference.
 - Audit logging + metrics endpoints.
 - Hardened host (systemd lockdown, UFW, fail2ban).
 
@@ -131,7 +131,7 @@ MIT
 | Ingestion              | Complex, licensed by volume       | Lossless, simple drop-in folder ingest   |
 | Correlation/Rules      | Static rules, endless tuning      | AI-driven enrichment & context           |
 | UI                     | Dashboards & queries              | Chat + canvas (ask, answer, annotate)    |
-| Memory                 | None                              | AI sandbox notes (EchoTime)              |
+| Memory                 | None                              | AI sandbox notes                         |
 | Security               | Add-on MFA, complex RBAC          | MFA, AD/Azure, HMAC ingest (by default)  |
 | Openness               | Proprietary                       | Open source core                         |
 | Pricing                | $$$$ (volume-based)               | Free core; enterprise packs optional     |
